@@ -1,2 +1,5 @@
 venv/*
 mnist.csv
+heartE.csv
+heartV.csv 
+student25Todo_2.csv

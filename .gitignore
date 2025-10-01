@@ -5,3 +5,6 @@ heartV.csv
 student25Todo_2.csv
 confusion_matrix_norm_v1.csv
 confusion_matrix_v1.csv
+context/*
+docs/*
+output/*

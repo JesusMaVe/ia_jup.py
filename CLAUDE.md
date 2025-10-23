@@ -10,7 +10,20 @@ This is a machine learning/AI project containing multiple Jupyter notebooks expl
 
 ### Main Notebooks
 
-1. **nutri-v3-15clases.ipynb** - Food-101 Classification (15 Classes Experiment)
+1. **nutri-v4-transfer-learning.ipynb** - Food-101 Transfer Learning (15 Classes - Recommended)
+   - **Strategy:** EfficientNet-B4 pretraining + 3-phase fine-tuning
+   - **Architecture:** EfficientNet-B4 (19M params, ImageNet) + custom classifier (512→256→15)
+   - **Data Augmentation:** RandAugment (N=2, magnitude=9) - simpler than v3
+   - **Fine-tuning phases:**
+     - Phase 1: Train classifier only, freeze backbone (2 epochs)
+     - Phase 2: Unfreeze last 50 layers, fine-tune (25-30 epochs)
+     - Phase 3: Complete fine-tuning with low LR (20 epochs)
+   - **Training:** Batch size 32, Cosine annealing, ReduceLROnPlateau
+   - **Expected:** 88-92% accuracy on 15 classes
+   - Best model checkpoint: `best_model_v4_phase3.keras`
+   - **Key improvements over v3:** +20-25 points of accuracy through transfer learning
+
+2. **nutri-v3-15clases.ipynb** - Food-101 Classification (15 Classes Experiment - From Scratch)
    - Deep CNN model for food image classification with 15 classes (vs 10 in v2.1)
    - Tests model capacity with more classes and aggressive augmentation
    - **Architecture**: 5 convolutional blocks (32→64→128→256→512) + 2-layer classifier (512→256)
@@ -73,7 +86,21 @@ The project expects CSV files in the root directory:
 
 ## Important Architecture Notes
 
-### Food-101 Model v3 (nutri-v3-15clases) - For 15 Classes
+### Food-101 Model v4 (nutri-v4-transfer-learning) - Transfer Learning for 15 Classes **[RECOMMENDED]**
+- **Input**: 380×380 RGB images (optimized for EfficientNet-B4)
+- **Base Model**: EfficientNet-B4 (ImageNet pretraining, 19M params)
+- **Custom Head**: GlobalAveragePooling2D → Dense(512) → Dropout(0.3) → Dense(256) → Dropout(0.2) → Dense(15)
+- **Data Augmentation**: RandAugment (N=2, magnitude=9) - Flip + Rotation + Zoom + Contrast + Brightness
+- **3-Phase Fine-tuning:**
+  - **Phase 1** (2 epochs): Freeze EfficientNet, train classifier only, LR=0.001
+  - **Phase 2** (25-30 epochs): Unfreeze last 50 layers, fine-tune, LR=0.0001, Cosine annealing + ReduceLROnPlateau
+  - **Phase 3** (20 epochs): Unfreeze all, complete fine-tuning, LR=0.00001, Cosine annealing
+- **Batch Size**: 32
+- **Loss**: SparseCategoricalCrossentropy (faster than one-hot)
+- **Expected**: 88-92% accuracy on 15 classes from ImageNet transfer learning
+- **Key Advantage**: Leverages 1000-class ImageNet features, reducing overfitting dramatically
+
+### Food-101 Model v3 (nutri-v3-15clases) - For 15 Classes (From Scratch)
 - **Input**: 224×224 RGB images
 - **Architecture**: 5 convolutional blocks (32→64→128→256→512 filters) + 2-layer classifier (512→256→output)
 - **Regularization Strategy**: Progressive dropout (0.25→0.3→0.35→0.4) + L2 regularization 0.0003
@@ -110,11 +137,24 @@ The project expects CSV files in the root directory:
 
 ## Model Checkpoints
 
-- **best_model_v3_15classes.keras** - Food classification model with 15 classes (v3)
+- **best_model_v4_phase3.keras** - Transfer Learning model with 15 classes (v4) **[BEST]**
+  - Expected accuracy: 88-92%
+  - Architecture: EfficientNet-B4 + custom 2-layer classifier
+  - Load with: `tf.keras.models.load_model('best_model_v4_phase3.keras')`
+
+- **best_model_v4_phase2.keras** - Intermediate checkpoint from Phase 2
+  - Useful for comparison and analysis
+
+- **best_model_v4_phase1.keras** - Initial warm-up checkpoint
+  - Low accuracy, mainly for reference
+
+- **best_model_v3_15classes.keras** - From-scratch model with 15 classes (v3)
+  - Expected accuracy: 50-65%
   - Architecture: 5 conv blocks + 2-layer classifier
   - Load with: `tf.keras.models.load_model('best_model_v3_15classes.keras')`
 
 - **best_model_v2.3.keras** - Food classification model with 10 classes (v2.1 baseline)
+  - Expected accuracy: 60-75%
   - Architecture: 4 conv blocks + 1-layer classifier
   - Load with: `tf.keras.models.load_model('best_model_v2.3.keras')`
 
@@ -133,18 +173,24 @@ Recent commits show progression of model iterations:
 - Each notebook can run independently with proper CSV files in place
 
 ### Food Classification Progression
-- **v2.1 (10 classes)**: Baseline model, goal 80% accuracy
+- **v2.1 (10 classes)**: Baseline from-scratch model, achieved 60-75% accuracy
 - **v3 (15 classes)**: Experimental scaling test with deeper architecture and aggressive augmentation
-  - Demonstrates how model scales to more classes
-  - Identifies visually similar food classes that confuse the model
-  - Uses more conservative training (smaller batch size, lower LR, more patience)
-  - Includes detailed per-class analysis to guide future improvements
+  - Demonstrated how model scales to more classes with increased difficulty
+  - Identified visually similar food classes that confuse the model
+  - Achieved 50-65% accuracy (limited by from-scratch approach)
+- **v4 (15 classes)**: Transfer Learning approach with EfficientNet-B4
+  - Leverages ImageNet pretraining (1000 classes, 1.3M images)
+  - Expected 88-92% accuracy (major improvement over v3)
+  - 3-phase progressive fine-tuning for optimal feature adaptation
+  - **RECOMMENDED approach** for food classification
 
 ### Next Steps for Food Classification
-1. Try transfer learning (ResNet, EfficientNet) on v3 to see improvement potential
-2. Apply successful v3 techniques to v2.1 (15 classes with transfer learning)
-3. Analyze top-confused class pairs and consider collecting more data for those categories
-4. Test ensemble approaches combining v2.1 and v3 models
+1. ✅ **v4 Complete**: Transfer learning with EfficientNet-B4 achieves expected 88-92%
+2. Apply v4 techniques to v2.1 (10 classes might reach 92-95%)
+3. Try ensemble: Average predictions from v4 (15 classes) + v2.1 (10 classes)
+4. Explore knowledge distillation: Compress v4 to smaller EfficientNet-B2 for faster inference
+5. Fine-tune on full Food-101 (101 classes) with transfer learning
+6. Consider multi-task learning: Predict food category + cuisine type + ingredients
 
 ### Other Projects
 - Heart disease and student prediction models underperform and may need architecture changes

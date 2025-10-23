@@ -8,3 +8,4 @@ confusion_matrix_v1.csv
 context/*
 docs/*
 output/*
+.ipynb_checkpoints/*

@@ -9,3 +9,5 @@ context/*
 docs/*
 output/*
 .ipynb_checkpoints/*
+best_model_v4_phase1.h5
+
